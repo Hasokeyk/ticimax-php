@@ -6,6 +6,11 @@
 
 		public function check_request_params($this_class, $request_params){
 			$missing_params = [];
+
+			if(isset($this_class->product_id) and !empty($this_class->product_id) and $this_class->product_id > 0){
+				return true;
+			}
+
 			foreach($request_params as $method_name){
 				$new_method_name = 'get_'.$method_name;
 				$old_method_name = 'set_'.$method_name;

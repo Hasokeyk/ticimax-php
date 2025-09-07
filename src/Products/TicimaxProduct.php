@@ -18,9 +18,8 @@
 		public function get_products($filters = [], $pagination = []){
 			$client = $this->ticimax_request->soap_client($this->api_url);
 			try{
-
 				// Varsayılan filtre ve sayfalama ayarları
-				$defaultFilters    = [
+				$default_filters    = [
 					'Aktif'       => -1,
 					'Firsat'      => -1,
 					'Indirimli'   => -1,
@@ -29,30 +28,30 @@
 					'MarkaID'     => 0,
 					'UrunKartiID' => 0,
 				];
-				$defaultPagination = [
+				$default_pagination = [
 					'BaslangicIndex' => 0,
-					'KayitSayisi'    => 100,
+					'KayitSayisi'    => 1000,
 					'SiralamaDegeri' => 'ID',
 					'SiralamaYonu'   => 'DESC',
 				];
 
 				// Kullanıcıdan gelen parametrelerle birleştir
-				$urun_filteleme = array_merge($defaultFilters, $filters);
-				$urun_sayfalama = array_merge($defaultPagination, $pagination);
+				$urun_filteleme = array_merge($default_filters, $filters);
+				$urun_sayfalama = array_merge($default_pagination, $pagination);
 
 				$response = $client->__soapCall("SelectUrun", [
 					[
 						'UyeKodu' => $this->ticimax_request->key,
 						'f'       => (object)$urun_filteleme,
 						's'       => (object)$urun_sayfalama,
-					]
+					],
 				]);
 
 				$total_product = $client->__soapCall("SelectUrunCount", [
 					[
 						'UyeKodu' => $this->ticimax_request->key,
 						'f'       => (object)$urun_filteleme,
-					]
+					],
 				]);
 
 				return (object)[
@@ -62,7 +61,6 @@
 					'request'       => $client->__getLastRequest(),
 					'response'      => $client->__getLastResponse(),
 				];
-
 			}catch(SoapFault $e){
 				return (object)[
 					'status'   => 'danger',
@@ -73,42 +71,43 @@
 			}
 		}
 
-		public function create_products($ticimax_product_cards, TicimaxProductSettingsModel $ticimax_product_settings = null, TicimaxProductVariationSettingsModel $ticimax_product_variation_settings = null){
-
-			if(!is_array($ticimax_product_cards)){
-				return [
-					'status'  => 'danger',
-					'message' => 'Gönderilen ürün değeri dizi olmalıdır'
-				];
-			}
-
+		public function create_products(array $ticimax_product_cards){
 			$client = $this->ticimax_request->soap_client($this->api_url);
-			try{
 
-				$ticimax_product_cards_array = [];
+			try{
+				$ticimax_product_cards_array = ['UrunKarti' => []];
+
 				foreach($ticimax_product_cards as $ticimax_product_card){
-					$get_array = $ticimax_product_card->to_array();
-					if(is_array($get_array)){
-						$ticimax_product_cards_array['UrunKarti'][] = $get_array;
+
+					//print_r($ticimax_product_card);
+
+					$ticimax_product_class = $ticimax_product_card->get_product_class();
+					if(is_array($ticimax_product_class)){
+						$ticimax_product_cards_array['UrunKarti'][] = $ticimax_product_class['product'];
 					}
 					else{
-						return false;
+						return [
+							'status'  => 'danger',
+							'message' => 'Ürün kartı geçerli değil',
+						];
 					}
 				}
 
 				$params = [
-					[
-						'UyeKodu'      => $this->ticimax_request->key,
-						'urunKartlari' => $ticimax_product_cards_array,
-						'ukAyar'       => ($ticimax_product_settings ?? (new TicimaxProductSettingsModel()))->to_array(),
-						'vAyar'        => ($ticimax_product_variation_settings ?? (new TicimaxProductVariationSettingsModel()))->to_array(),
-					]
+					'UyeKodu'      => $this->ticimax_request->key,
+					'urunKartlari' => $ticimax_product_cards_array,
+					'ukAyar'       => $ticimax_product_class['product_settings'] ?? (new TicimaxProductSettingsModel())->to_array(),
+					'vAyar'        => $ticimax_product_variation_settings ?? (new TicimaxProductVariationSettingsModel())->to_array(),
 				];
 
-				$response = $client->__soapCall("SaveUrun", $params);
+				//print_r($params);
+				//				exit;
+
+				$response = $client->__soapCall("SaveUrun", [$params]);
+
 				return (object)[
 					'status'   => 'success',
-					'data'     => isset($response->urunKartlari->UrunKarti->ID) ? (object)['urunKartlari' => (object)['UrunKarti' => [$response->urunKartlari->UrunKarti]]] : ($response ?? null), //EĞER TEK VERİ VARSA DİREKT ERİŞİM VERİYOR DÖNGÜYE ALINCA HATA VERMEMESİ İÇİN TEK VERİ VARSA DİZİ İÇİNE OTOMATİK ALIYORUZ
+					'data'     => isset($response->urunKartlari->UrunKarti->ID) ? (object)['urunKartlari' => (object)['UrunKarti' => [$response->urunKartlari->UrunKarti]]] : ($response ?? null),
 					'request'  => $client->__getLastRequest(),
 					'response' => $client->__getLastResponse(),
 				];
@@ -122,17 +121,16 @@
 			}
 		}
 
-		public function update_main_products(TicimaxProduct $ticimax_product_card){
+		public function update_main_products(TicimaxProductModel $ticimax_product_card){
 			$client = $this->ticimax_request->soap_client($this->api_url);
 			try{
-
-				$ticimax_product_card_array          = $ticimax_product_card->product_to_array();
-				$ticimax_product_card_settings_array = $ticimax_product_card->uk_ayar_to_array();
+				$ticimax_product_card_array          = $ticimax_product_card->get_product_class()['product'];
+				$ticimax_product_card_settings_array = $ticimax_product_card->get_product_class()['product_settings'];
 
 				if(isset($ticimax_product_card_array['ID']) and $ticimax_product_card_array['ID'] == 0){
 					return (object)[
 						'status'  => 'danger',
-						'message' => 'Ürün güncellerken ürün ID 0 girilemez'
+						'message' => 'Ürün güncellerken ürün ID 0 girilemez',
 					];
 				}
 
@@ -145,10 +143,11 @@
 						'UyeKodu'       => $this->ticimax_request->key,
 						'urunKarti'     => $ticimax_product_card_array,
 						'urunKartiAyar' => $ticimax_product_card_settings_array,
-					]
+					],
 				];
 
 				$response = $client->__soapCall("UrunKartiGuncelle", $params);
+
 				return (object)[
 					'status'   => 'success',
 					'data'     => $response ?? null,
@@ -168,14 +167,13 @@
 		public function update_variation_products(TicimaxProductVariationModel $ticimax_product_card){
 			$client = $this->ticimax_request->soap_client($this->api_url);
 			try{
-
 				$ticimax_product_variation_array          = $ticimax_product_card->product_variation_to_array();
 				$ticimax_product_variation_settings_array = $ticimax_product_card->v_ayar_to_array();
 
 				if(isset($ticimax_product_variation_array['ID']) and $ticimax_product_variation_array['ID'] == 0){
 					return (object)[
 						'status'  => 'danger',
-						'message' => 'Ürün güncellerken ürün ID 0 girilemez '
+						'message' => 'Ürün güncellerken ürün ID 0 girilemez ',
 					];
 				}
 
@@ -188,10 +186,11 @@
 						'UyeKodu' => $this->ticimax_request->key,
 						'urun'    => $ticimax_product_variation_array,
 						'ayar'    => $ticimax_product_variation_settings_array,
-					]
+					],
 				];
 
 				$response = $client->__soapCall("VaryasyonGuncelle", $params);
+
 				return (object)[
 					'status'   => 'success',
 					'data'     => $response ?? null,
@@ -205,6 +204,34 @@
 					'request'  => $client->__getLastRequest(),
 					'response' => $client->__getLastResponse(),
 				];
+			}
+		}
+
+		public function update_product_url($id, $url){
+			$client = $this->ticimax_request->soap_client($this->api_url);
+			try{
+
+				$params = [
+					[
+						'UyeKodu' => $this->ticimax_request->key,
+						'request' => [
+							'ID'  => $id,
+							'Tip' => 'Urun',
+							'Url' => $url,
+						]
+					],
+				];
+
+				$response = $client->__soapCall("UpdateUrl", $params);
+
+				return (object)[
+					'status'   => 'success',
+					'data'     => $response ?? null,
+					'request'  => $client->__getLastRequest(),
+					'response' => $client->__getLastResponse(),
+				];
+			}catch(SoapFault $e){
+				return (object)['status' => 'danger', 'message' => $e->getMessage(), 'request' => $client->__getLastRequest(), 'response' => $client->__getLastResponse(),];
 			}
 		}
 

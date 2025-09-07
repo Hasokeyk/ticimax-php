@@ -6,25 +6,27 @@
 
 	class TicimaxProductModel{
 
-		public $product_id                = 0;
-		public $product_name              = '';
-		public $product_description       = '';
-		public $product_is_active         = true;
-		public $product_category_id       = 0;
-		public $product_categories_ids    = [];
-		public $product_show_list         = true;
-		public $product_brand_id          = 0;
-		public $product_supplier_id       = 0;
-		public $product_variations        = [];
-		public $product_highlighting      = true;
-		public $product_images            = [];
-		public $product_unit_name         = null;
-		public $product_1_custom_variable = null;
-		public $product_2_custom_variable = null;
-		public $product_3_custom_variable = null;
-		public $product_4_custom_variable = null;
-		public $product_5_custom_variable = null;
-
+		public  $product_id                = 0;
+		public  $product_name              = '';
+		public  $product_description       = '';
+		public  $product_is_active         = true;
+		public  $product_category_id       = 0;
+		public  $product_categories_ids    = [];
+		public  $product_show_list         = true;
+		public  $product_brand_id          = 0;
+		public  $product_supplier_id       = 0;
+		public  $product_variations        = [];
+		public  $product_highlighting      = true;
+		public  $product_images            = [];
+		public  $product_unit_name         = null;
+		public  $product_1_custom_variable = null;
+		public  $product_2_custom_variable = null;
+		public  $product_3_custom_variable = null;
+		public  $product_4_custom_variable = null;
+		public  $product_5_custom_variable = null;
+		public  $product_seo_url           = null;
+		public  $product_seo_redirect_url  = null;
+		private $product_settings_class    = null;
 
 		private $request_params = [
 			'product_name',
@@ -38,7 +40,8 @@
 		private $ticimax_helper;
 
 		function __construct(){
-			$this->ticimax_helper = new TicimaxHelpers();
+			$this->ticimax_helper         = new TicimaxHelpers();
+			$this->product_settings_class = new TicimaxProductSettingsModel();
 		}
 
 		public function get_product_id(){
@@ -54,6 +57,7 @@
 		}
 
 		public function set_product_name($product_name): void{
+			$this->product_settings_class->set_urun_adi_guncelle();
 			$this->product_name = $product_name;
 		}
 
@@ -62,6 +66,7 @@
 		}
 
 		public function set_product_description($product_description): void{
+			$this->product_settings_class->set_aciklama_guncelle();
 			$this->product_description = $product_description;
 		}
 
@@ -191,30 +196,44 @@
 			$this->product_5_custom_variable = $product_5_custom_variable;
 		}
 
-		public function to_array(){
+		public function get_product_seo_url(){
+			return $this->product_seo_url;
+		}
 
+		public function set_seo_url($product_seo_url): void{
+			$this->product_settings_class->set_urun_adresini_elle_olustur();
+			$this->product_seo_url = $product_seo_url;
+		}
+
+		public function set_seo_redirect_url($product_seo_url): void{
+			$this->product_seo_redirect_url = $product_seo_url;
+		}
+
+		public function to_array(){
 			$check = $this->ticimax_helper->check_request_params($this, $this->request_params);
 			if(!$check){
 				return false;
 			}
 
 			$product_array = [
-				'ID'            => $this->product_id,
-				'UrunAdi'       => $this->product_name,
-				'Aktif'         => $this->product_is_active,
-				'MarkaID'       => $this->product_brand_id,
-				'TedarikciID'   => $this->product_supplier_id,
-				'AnaKategoriID' => $this->product_category_id,
-				'Kategoriler'   => $this->product_categories_ids,
-				'ListedeGoster' => $this->product_show_list,
-				'Resimler'      => $this->product_images,
-				'SatisBirimi'   => $this->product_unit_name,
-				'Vitrin'        => $this->product_highlighting,
-				'OzelAlan1'     => $this->product_1_custom_variable,
-				'OzelAlan2'     => $this->product_2_custom_variable,
-				'OzelAlan3'     => $this->product_3_custom_variable,
-				'OzelAlan4'     => $this->product_4_custom_variable,
-				'OzelAlan5'     => $this->product_5_custom_variable,
+				'ID'                => $this->product_id,
+				'UrunAdi'           => $this->product_name,
+				'Aktif'             => $this->product_is_active,
+				'MarkaID'           => $this->product_brand_id,
+				'TedarikciID'       => $this->product_supplier_id,
+				'AnaKategoriID'     => $this->product_category_id,
+				'Kategoriler'       => $this->product_categories_ids,
+				'ListedeGoster'     => $this->product_show_list,
+				'Resimler'          => $this->product_images,
+				'SatisBirimi'       => $this->product_unit_name,
+				'Vitrin'            => $this->product_highlighting,
+				'OzelAlan1'         => $this->product_1_custom_variable,
+				'OzelAlan2'         => $this->product_2_custom_variable,
+				'OzelAlan3'         => $this->product_3_custom_variable,
+				'OzelAlan4'         => $this->product_4_custom_variable,
+				'OzelAlan5'         => $this->product_5_custom_variable,
+				'UrunSayfaAdresi'   => $this->product_seo_url,
+				'Adres'             => $this->product_seo_url,
 			];
 
 			if(is_array($this->product_variations)){
@@ -222,6 +241,13 @@
 			}
 
 			return $product_array;
+		}
+
+		public function get_product_class(): array{
+			return [
+				'product'          => $this->to_array(),
+				'product_settings' => $this->product_settings_class->to_array(),
+			];
 		}
 
 	}
